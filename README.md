@@ -22,3 +22,10 @@ npm run tauri dev
 - `src/features/<name>/`: one folder per UI feature (devices, files, apps, logcat...).
 
 To add a feature: add functions to `adb/`, expose them in `commands/`, register them in `lib.rs`, then add a folder under `src/features/`.
+
+## License
+
+Appraiser is licensed under the [Apache License 2.0](LICENSE).
+
+It includes the unmodified scrcpy server (Copyright Genymobile, Apache License 2.0)
+in [`vendor/scrcpy`](vendor/scrcpy), which keeps its own license file.
