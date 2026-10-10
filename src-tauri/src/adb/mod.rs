@@ -59,7 +59,7 @@ pub use logcat::{clear as clear_logcat, start as start_logcat, Event as LogEvent
 pub use mirror::{start as start_mirror, Event as MirrorEvent, Mirror};
 pub use error::AdbError;
 pub use info::DeviceInfo;
-pub use qr::{cancel as cancel_qr_pairing, finish as finish_qr_pairing, start as start_qr_pairing, QrSession};
+pub use qr::{cancel as cancel_qr_pairing, finish as finish_qr_pairing, start as start_qr_pairing, QrPairingResult, QrSession};
 pub use wireless::{connect, connect_quick, disconnect, enable_wireless, pair};
 
 /// Lists all devices currently known to the adb server.

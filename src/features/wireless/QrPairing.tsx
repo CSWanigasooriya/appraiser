@@ -3,7 +3,7 @@ import { cancelQrPairing, finishQrPairing, startQrPairing, type QrSession } from
 import { Button } from '../../components/ui/Button'
 import { useToast } from '../../components/ui/toast'
 
-export function QrPairing({ onDone }: { onDone: () => void }) {
+export function QrPairing({ onDone, onNeedsConnect }: { onDone: () => void; onNeedsConnect: () => void }) {
   const toast = useToast()
   const [session, setSession] = useState<QrSession | null>(null)
 
@@ -19,9 +19,10 @@ export function QrPairing({ onDone }: { onDone: () => void }) {
     try {
       const s = await startQrPairing()
       setSession(s)
-      await finishQrPairing(s.name, s.password)
-      toast('Paired. The device should appear shortly.')
-      onDone()
+      const result = await finishQrPairing(s.name, s.password)
+      toast(result.message, result.connected ? 'success' : 'error')
+      if (result.connected) onDone()
+      else onNeedsConnect()
     } catch (e) {
       const text = String(e)
       if (text !== 'Cancelled') toast(text, 'error')
@@ -43,7 +44,7 @@ export function QrPairing({ onDone }: { onDone: () => void }) {
             alt="Pairing QR code"
             src={`data:image/svg+xml;utf8,${encodeURIComponent(session.svg)}`}
           />
-          <p className="text-sm text-zinc-500">Waiting for the phone to scan...</p>
+          <p className="text-sm text-zinc-500">Waiting for the phone to scan and connect...</p>
           <Button
             onClick={() => {
               cancelQrPairing()

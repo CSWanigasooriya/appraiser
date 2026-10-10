@@ -32,9 +32,9 @@ pub async fn start_qr_pairing() -> Result<adb::QrSession, AdbError> {
     blocking(adb::start_qr_pairing).await
 }
 
-/// Step 2: waits for the phone to scan the code, then pairs. Can take up to two minutes.
+/// Step 2: waits for the scan, pairs, then connects to the phone's debugging port.
 #[tauri::command]
-pub async fn finish_qr_pairing(name: String, password: String) -> Result<String, AdbError> {
+pub async fn finish_qr_pairing(name: String, password: String) -> Result<adb::QrPairingResult, AdbError> {
     blocking(move || adb::finish_qr_pairing(&name, &password)).await
 }
 

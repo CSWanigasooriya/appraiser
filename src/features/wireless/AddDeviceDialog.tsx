@@ -141,7 +141,7 @@ export function AddDeviceDialog({ open, onClose }: { open: boolean; onClose: () 
             { id: 'ip', label: 'IP address', icon: <Link size={16} /> },
           ]}
         />
-        {tab === 'qr' && <QrPairing onDone={onClose} />}
+        {tab === 'qr' && <QrPairing onDone={onClose} onNeedsConnect={() => setTab('ip')} />}
         {tab === 'pair' && (
           <>
             <p className="text-sm text-zinc-500">
@@ -160,12 +160,18 @@ export function AddDeviceDialog({ open, onClose }: { open: boolean; onClose: () 
           </>
         )}
         {tab === 'ip' && (
-          <AddrForm
-            fields={[{ label: 'IP address and port', placeholder: '192.168.1.42:5555' }]}
-            submitLabel="Connect"
-            action={([addr]) => connectDevice(addr)}
-            onDone={onClose}
-          />
+          <>
+            <p className="text-sm text-zinc-500">
+              Use the IP address and port on the phone's main Wireless debugging screen.
+              This is different from the pairing address.
+            </p>
+            <AddrForm
+              fields={[{ label: 'IP address and port', placeholder: '192.168.1.42:41839' }]}
+              submitLabel="Connect"
+              action={([addr]) => connectDevice(addr)}
+              onDone={onClose}
+            />
+          </>
         )}
         <SavedList />
       </div>

@@ -61,9 +61,14 @@ export interface QrSession {
 }
 
 export const startQrPairing = () => invoke<QrSession>('start_qr_pairing')
-/** Resolves once the phone has scanned the code and paired (up to ~2 min). */
+export interface QrPairingResult {
+  connected: boolean
+  message: string
+}
+
+/** Pairs and explicitly connects; reports when a manual connection is needed. */
 export const finishQrPairing = (name: string, password: string) =>
-  invoke<string>('finish_qr_pairing', { name, password })
+  invoke<QrPairingResult>('finish_qr_pairing', { name, password })
 export const cancelQrPairing = () => invoke<void>('cancel_qr_pairing')
 
 export interface App {
