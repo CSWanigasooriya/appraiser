@@ -10,7 +10,37 @@ permissions:
   contents: write
 
 jobs:
+  # The scrcpy server is a platform-independent dex jar. Build it once on Linux,
+  # where vendor/scrcpy/server/build_without_gradle.sh works, and share it with
+  # every platform job (the script does not work on Windows).
+  scrcpy-server:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: "platforms;android-36 build-tools;36.0.0"
+
+      - name: Build scrcpy server
+        run: |
+          mkdir -p "$RUNNER_TEMP/scrcpy"
+          BUILD_DIR="$RUNNER_TEMP/scrcpy" bash vendor/scrcpy/server/build_without_gradle.sh
+          test -s "$RUNNER_TEMP/scrcpy/scrcpy-server"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scrcpy-server
+          path: ${{ runner.temp }}/scrcpy/scrcpy-server
+          if-no-files-found: error
+
   release:
+    needs: scrcpy-server
     strategy:
       fail-fast: false
       matrix:
@@ -38,16 +68,11 @@ jobs:
           node-version: lts/*
           cache: npm
 
-      # src-tauri/build.rs compiles the vendored scrcpy server: needs a JDK and
-      # the Android SDK platform/build-tools (see vendor/scrcpy/README.md).
-      - uses: actions/setup-java@v6
+      # build.rs embeds the scrcpy server jar built by the scrcpy-server job.
+      - uses: actions/download-artifact@v4
         with:
-          distribution: temurin
-          java-version: 17
-
-      - uses: android-actions/setup-android@v4
-        with:
-          packages: "platforms;android-36 build-tools;36.0.0"
+          name: scrcpy-server
+          path: scrcpy-server
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -59,16 +84,33 @@ jobs:
 
       - run: npm ci
 
-      - uses: tauri-apps/tauri-action@v0
+      # Optional macOS signing/notarization. A secret that is not set still reaches
+      # the job as an empty string, and Tauri then tries to import an empty
+      # certificate and fails, so only export these when a certificate exists.
+      - name: Configure macOS signing
+        if: matrix.platform == 'macos-latest'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Optional macOS signing/notarization. Unset secrets are ignored.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "No APPLE_CERTIFICATE secret: building unsigned."
+            exit 0
+          fi
+          for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -n "${!v}" ]; then
+              { echo "$v<<EOF_$v"; printenv "$v"; echo "EOF_$v"; } >> "$GITHUB_ENV"
+            fi
+          done
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SCRCPY_SERVER_PREBUILT: ${{ github.workspace }}/scrcpy-server/scrcpy-server
         with:
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
           releaseName: Appraiser ${{ github.ref_name }}

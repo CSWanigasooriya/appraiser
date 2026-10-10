@@ -22,6 +22,10 @@ It needs a JDK (`javac`) and an Android SDK with `platforms;android-36` and
 `ANDROID_PLATFORM` / `ANDROID_BUILD_TOOLS` to use other versions. The build
 bundles `server/build_without_gradle.sh`, which needs `bash` (on Windows, Git Bash).
 
+Release CI does not run that script on every platform: the `scrcpy-server` job builds the jar once on Linux and
+the other jobs pass it to `build.rs` through `SCRCPY_SERVER_PREBUILT=<path to jar>`, which skips the JDK/SDK/bash
+step. The same variable works locally if you already have a built jar.
+
 ## Patching
 
 Change files under `vendor/scrcpy/server/src/main/java/...`, then record the

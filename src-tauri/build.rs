@@ -11,6 +11,7 @@ fn main() {
 /// directory, so the app can embed it. Cargo reruns this only when the server
 /// source or the SDK location changes. Needs a JDK and an Android SDK with
 /// `platforms;android-36` and `build-tools;36.0.0` (see vendor/scrcpy/README.md).
+/// Set `SCRCPY_SERVER_PREBUILT` to a ready-made server jar to skip all of that.
 fn build_scrcpy_server() {
     let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let server = manifest.join("../vendor/scrcpy/server");
@@ -30,6 +31,20 @@ fn build_scrcpy_server() {
 
     let build_dir = PathBuf::from(env::var("OUT_DIR").unwrap()).join("scrcpy");
     let jar = build_dir.join("scrcpy-server");
+
+    // CI builds the server once on Linux and hands it to every platform, because
+    // the script is not Windows-safe (aidl path handling, `:` classpath separator,
+    // `d8.bat`). The jar is a dex archive, identical on every OS.
+    println!("cargo:rerun-if-env-changed=SCRCPY_SERVER_PREBUILT");
+    if let Some(prebuilt) = env::var_os("SCRCPY_SERVER_PREBUILT").filter(|v| !v.is_empty()).map(PathBuf::from) {
+        println!("cargo:rerun-if-changed={}", prebuilt.display());
+        assert!(prebuilt.is_file(), "SCRCPY_SERVER_PREBUILT={} is not a file", prebuilt.display());
+        std::fs::create_dir_all(&build_dir).unwrap();
+        std::fs::copy(&prebuilt, &jar).expect("failed to copy the prebuilt scrcpy server");
+        println!("cargo:rustc-env=SCRCPY_VERSION={version}");
+        println!("cargo:rustc-env=SCRCPY_SERVER_JAR={}", jar.display());
+        return;
+    }
 
     let platform = env::var("ANDROID_PLATFORM").unwrap_or_else(|_| "36".into());
     let tools = env::var("ANDROID_BUILD_TOOLS").unwrap_or_else(|_| "36.0.0".into());
