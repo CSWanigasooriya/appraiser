@@ -1,10 +1,11 @@
 mod adb;
 mod commands;
 
-use commands::{actions, apps, devices, wireless};
+use commands::{actions, apps, devices, mirror, wireless};
 
 pub fn run() {
     tauri::Builder::default()
+        .manage(mirror::MirrorSessions::default())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             devices::start_device_watcher(app.handle().clone());
@@ -30,6 +31,9 @@ pub fn run() {
             apps::uninstall_app,
             apps::clear_app_data,
             apps::force_stop_app,
+            mirror::start_mirror,
+            mirror::stop_mirror,
+            mirror::mirror_input,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Appraiser");

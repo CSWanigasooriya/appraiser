@@ -2,12 +2,16 @@
 //! tested and reused (e.g. by a future CLI).
 
 mod apps;
+mod control;
 mod device;
 mod error;
+mod h264;
 mod icons;
+mod mirror;
 mod info;
 mod qr;
 mod runner;
+mod scrcpy;
 mod wireless;
 
 pub use apps::{
@@ -16,7 +20,10 @@ pub use apps::{
     uninstall as uninstall_app, App,
 };
 pub use device::Device;
+pub use control::Input;
+pub use h264::Packet;
 pub use icons::app_icon;
+pub use mirror::{start as start_mirror, Event as MirrorEvent, Mirror};
 pub use error::AdbError;
 pub use info::DeviceInfo;
 pub use qr::{cancel as cancel_qr_pairing, finish as finish_qr_pairing, start as start_qr_pairing, QrSession};

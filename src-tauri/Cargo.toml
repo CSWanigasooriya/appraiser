@@ -1,6 +1,7 @@
 [package]
 name = "appraiser"
 version = "0.1.0"
+license = "Apache-2.0"
 description = "A visual manager for adb-connected Android devices"
 edition = "2021"
 

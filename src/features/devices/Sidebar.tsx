@@ -21,15 +21,15 @@ interface Props {
 
 export function Sidebar({ devices, error, selected, onSelect, onAdd }: Props) {
   return (
-    <aside className="flex w-72 flex-none flex-col border-r border-zinc-200 bg-zinc-100/60 dark:border-zinc-800 dark:bg-zinc-900/40">
-      <div className="px-4 pt-5 pb-3">
-        <h1 className="text-base font-semibold">ADB GUI</h1>
-        <p className="text-xs text-zinc-500">
+    <aside className="flex w-16 flex-none lg:w-72 flex-col border-r border-zinc-200 bg-zinc-100/60 dark:border-zinc-800 dark:bg-zinc-900/40">
+      <div className="px-2 pt-5 pb-3 max-lg:text-center lg:px-4">
+        <h1 className="text-base font-semibold max-lg:text-xs">ADB GUI</h1>
+        <p className="text-xs text-zinc-500 max-lg:hidden">
           {devices.length} device{devices.length === 1 ? '' : 's'}
         </p>
       </div>
 
-      <nav className="flex-1 space-y-1.5 overflow-y-auto px-3">
+      <nav className="flex-1 space-y-1.5 overflow-y-auto px-2 lg:px-3">
         {error && (
           <p className="rounded-lg bg-red-500/10 p-3 text-xs text-red-600 dark:text-red-400">
             {error}
@@ -41,9 +41,10 @@ export function Sidebar({ devices, error, selected, onSelect, onAdd }: Props) {
         {devices.map((d) => (
           <button
             key={d.serial}
+            title={d.model ?? d.serial}
             onClick={() => onSelect(d.serial)}
             className={cn(
-              'flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors',
+              'flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 max-lg:justify-center max-lg:px-0 text-left transition-colors',
               d.serial === selected
                 ? 'bg-white shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700'
                 : 'hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60',
@@ -54,18 +55,18 @@ export function Sidebar({ devices, error, selected, onSelect, onAdd }: Props) {
             ) : (
               <Smartphone size={18} className="flex-none text-zinc-500" />
             )}
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 max-lg:hidden">
               <div className="truncate text-sm font-medium">{d.model ?? d.serial}</div>
               <div className="truncate text-xs text-zinc-500">{d.serial}</div>
             </div>
-            <Badge tone={stateTone[d.state]}>{d.state}</Badge>
+            <Badge tone={stateTone[d.state]} className="max-lg:hidden">{d.state}</Badge>
           </button>
         ))}
       </nav>
 
-      <div className="p-3">
-        <Button variant="primary" className="w-full" onClick={onAdd}>
-          <Plus size={16} /> Add device
+      <div className="p-2 lg:p-3">
+        <Button variant="primary" className="w-full max-lg:px-0" onClick={onAdd} title="Add device">
+          <Plus size={16} /> <span className="max-lg:sr-only">Add device</span>
         </Button>
       </div>
     </aside>

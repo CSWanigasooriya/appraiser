@@ -2,6 +2,7 @@
 pub mod actions;
 pub mod apps;
 pub mod devices;
+pub mod mirror;
 pub mod wireless;
 
 use tauri::async_runtime;

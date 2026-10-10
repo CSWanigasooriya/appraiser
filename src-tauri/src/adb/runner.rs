@@ -1,5 +1,5 @@
 use std::io::ErrorKind;
-use std::process::{Command, Output};
+use std::process::{Child, Command, Output, Stdio};
 
 use super::AdbError;
 
@@ -37,6 +37,24 @@ fn check(output: Output) -> Result<Vec<u8>, AdbError> {
 pub fn run(args: &[&str]) -> Result<String, AdbError> {
     let bytes = check(exec(args)?)?;
     Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// Starts `adb <args>` with piped stdout/stderr for long-running streams.
+pub fn spawn_stream(args: &[&str]) -> Result<Child, AdbError> {
+    let mut cmd = Command::new("adb");
+    // stdin stays open (held by the Child): adb ends an exec-out stream on stdin EOF.
+    cmd.args(args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000);
+    }
+
+    cmd.spawn().map_err(|e| match e.kind() {
+        ErrorKind::NotFound => AdbError::NotFound,
+        _ => AdbError::Io(e),
+    })
 }
 
 /// Returns raw stdout bytes (e.g. screenshots).

@@ -1,14 +1,15 @@
-import { Battery, LayoutDashboard, Package, SquareTerminal, Usb, Wifi } from 'lucide-react'
+import { Battery, LayoutDashboard, MonitorPlay, Package, SquareTerminal, Usb, Wifi } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { deviceInfo, isWireless, type Device, type DeviceInfo } from '../../lib/adb'
 import { Badge } from '../../components/ui/Badge'
 import { Tabs } from '../../components/ui/Tabs'
 import { useToast } from '../../components/ui/toast'
 import { AppsTab } from '../apps/AppsTab'
+import { MirrorTab } from '../mirror/MirrorTab'
 import { Overview } from './Overview'
 import { Terminal } from './Terminal'
 
-type Tab = 'overview' | 'apps' | 'terminal'
+type Tab = 'overview' | 'apps' | 'mirror' | 'terminal'
 
 export function DeviceView({ device }: { device: Device }) {
   const toast = useToast()
@@ -32,7 +33,7 @@ export function DeviceView({ device }: { device: Device }) {
   }, [device.serial, ready, toast])
 
   return (
-    <div className="mx-auto flex min-h-full max-w-4xl flex-col gap-5 p-6">
+    <div className="mx-auto flex min-h-full max-w-4xl flex-col gap-5 p-4 sm:p-6">
       <header className="flex flex-wrap items-center gap-3">
         <h2 className="text-xl font-semibold">{device.model ?? device.serial}</h2>
         <Badge tone={ready ? 'green' : 'amber'}>{device.state}</Badge>
@@ -61,6 +62,7 @@ export function DeviceView({ device }: { device: Device }) {
             tabs={[
               { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={16} /> },
               { id: 'apps', label: 'Apps', icon: <Package size={16} /> },
+              { id: 'mirror', label: 'Mirror', icon: <MonitorPlay size={16} /> },
               { id: 'terminal', label: 'Shell', icon: <SquareTerminal size={16} /> },
             ]}
           />
@@ -70,6 +72,11 @@ export function DeviceView({ device }: { device: Device }) {
           {visited.has('apps') && (
             <div hidden={tab !== 'apps'}>
               <AppsTab serial={device.serial} />
+            </div>
+          )}
+          {visited.has('mirror') && (
+            <div className={tab === 'mirror' ? '' : 'hidden'}>
+              <MirrorTab serial={device.serial} title={device.model ?? device.serial} active={tab === 'mirror'} />
             </div>
           )}
           {visited.has('terminal') && (

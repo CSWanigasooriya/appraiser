@@ -5,6 +5,7 @@ import { AppIcon } from './AppIcon'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Dialog } from '../../components/ui/Dialog'
+import { Tooltip } from '../../components/ui/Tooltip'
 import { Input } from '../../components/ui/Input'
 import { useToast } from '../../components/ui/toast'
 
@@ -98,31 +99,34 @@ export function AppList({ serial, apps, loading, includeSystem, onIncludeSystemC
                 </div>
               </div>
               <div className="flex flex-none gap-1">
-                <Button
-                  variant="ghost"
-                  disabled={busy === app.package}
-                  onClick={() => run(app.package, () => forceStopApp(serial, app.package), 'Force stopped')}
-                  title="Force stop"
-                >
-                  <SquareX size={15} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  disabled={busy === app.package}
-                  onClick={() => setPending({ kind: 'clear', app })}
-                  title="Clear data"
-                >
-                  <Eraser size={15} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  disabled={busy === app.package}
-                  onClick={() => setPending({ kind: 'uninstall', app })}
-                  title="Uninstall"
-                  className="text-red-600 dark:text-red-400"
-                >
-                  <Trash2 size={15} />
-                </Button>
+                <Tooltip label="Force stop">
+                  <Button
+                    variant="ghost"
+                    disabled={busy === app.package}
+                    onClick={() => run(app.package, () => forceStopApp(serial, app.package), 'Force stopped')}
+                  >
+                    <SquareX size={15} />
+                  </Button>
+                </Tooltip>
+                <Tooltip label="Clear data">
+                  <Button
+                    variant="ghost"
+                    disabled={busy === app.package}
+                    onClick={() => setPending({ kind: 'clear', app })}
+                  >
+                    <Eraser size={15} />
+                  </Button>
+                </Tooltip>
+                <Tooltip label="Uninstall">
+                  <Button
+                    variant="ghost"
+                    disabled={busy === app.package}
+                    onClick={() => setPending({ kind: 'uninstall', app })}
+                    className="text-red-600 dark:text-red-400"
+                  >
+                    <Trash2 size={15} />
+                  </Button>
+                </Tooltip>
               </div>
             </li>
           ))}

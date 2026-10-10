@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { Channel, invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 
 export type DeviceState = 'online' | 'offline' | 'unauthorized' | 'other'
@@ -86,3 +86,23 @@ export const clearAppData = (serial: string, pkg: string) =>
   invoke<void>('clear_app_data', { serial, package: pkg })
 export const forceStopApp = (serial: string, pkg: string) =>
   invoke<void>('force_stop_app', { serial, package: pkg })
+
+/**
+ * Starts mirroring. Messages arrive as binary: `[0][codec len][codec][avcC]`
+ * (decoder config), `[1][key][AVCC frame]`, `[2][utf8 error]`, `[3][s16le stereo 48 kHz PCM]` or `[4][utf8 notice]`.
+ */
+export const startMirror = (serial: string, onMessage: (data: ArrayBuffer) => void) => {
+  const channel = new Channel<ArrayBuffer>()
+  channel.onmessage = onMessage
+  return invoke<void>('start_mirror', { serial, onFrame: channel })
+}
+/** Input for the mirrored phone. Touch coordinates are in video pixels. */
+export type MirrorInput =
+  | { kind: 'touch'; action: 0 | 1 | 2; x: number; y: number; width: number; height: number }
+  | { kind: 'scroll'; x: number; y: number; width: number; height: number; h: number; v: number }
+  | { kind: 'key'; keycode: number }
+  | { kind: 'text'; text: string }
+
+export const mirrorInput = (serial: string, input: MirrorInput) =>
+  invoke<void>('mirror_input', { serial, input })
+export const stopMirror = (serial: string) => invoke<void>('stop_mirror', { serial })
