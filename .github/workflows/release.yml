@@ -1,19 +1,41 @@
+# Releases are automatic. Commit with conventional messages (feat:, fix:, ...) and
+# release-please keeps a "Release PR" open that bumps the version and changelog.
+# Merging that PR creates the tag and release, and the jobs below then build the
+# installers and attach them. Pushing a v* tag or running this workflow by hand
+# still builds too (a manual run builds without publishing anything).
 name: Release
 
 on:
   push:
+    branches: [main]
     tags:
       - "v*"
   workflow_dispatch:
 
 permissions:
   contents: write
+  pull-requests: write
+  issues: write
 
 jobs:
+  release-please:
+    runs-on: ubuntu-22.04
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: rp
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
   # The scrcpy server is a platform-independent dex jar. Build it once on Linux,
   # where vendor/scrcpy/server/build_without_gradle.sh works, and share it with
   # every platform job (the script does not work on Windows).
   scrcpy-server:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -40,7 +62,9 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: scrcpy-server
+    needs: [release-please, scrcpy-server]
+    if: needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
+    # The "main" ref name only appears in manual runs, which publish nothing.
     strategy:
       fail-fast: false
       matrix:
@@ -112,8 +136,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SCRCPY_SERVER_PREBUILT: ${{ github.workspace }}/scrcpy-server/scrcpy-server
         with:
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-          releaseName: Appraiser ${{ github.ref_name }}
+          tagName: ${{ needs.release-please.outputs.tag_name || (github.ref_type == 'tag' && github.ref_name) || '' }}
+          releaseName: Appraiser ${{ needs.release-please.outputs.tag_name || github.ref_name }}
           releaseBody: See the assets below to download and install.
           releaseDraft: true
           prerelease: false
