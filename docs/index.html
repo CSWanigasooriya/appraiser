@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Appraiser</title>
+<meta name="description" content="A visual manager for adb-connected Android devices: apps, files, logs, shell and screen mirroring.">
+<link rel="icon" href="icon.png">
+<style>
+  :root {
+    --bg: #ffffff; --fg: #18181b; --muted: #52525b; --card: #f4f4f5; --border: #e4e4e7;
+    --accent: #2563eb; --accent-fg: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #09090b; --fg: #f4f4f5; --muted: #a1a1aa; --card: #18181b; --border: #27272a; --accent: #3b82f6; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 64rem; margin: 0 auto; padding: 0 16px; }
+  header.hero { text-align: center; padding: 72px 0 48px; }
+  .hero img.logo { width: 96px; height: 96px; }
+  h1 { font-size: clamp(2rem, 6vw, 3.25rem); margin: 16px 0 8px; letter-spacing: -0.02em; }
+  .tagline { color: var(--muted); font-size: 1.15rem; max-width: 36rem; margin: 0 auto 28px; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  a.btn { display: inline-block; padding: 10px 20px; border-radius: 10px; font-weight: 600; text-decoration: none;
+          border: 1px solid var(--border); color: var(--fg); background: var(--card); }
+  a.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .note { color: var(--muted); font-size: .85rem; margin-top: 12px; }
+  section { padding: 40px 0; }
+  h2 { font-size: 1.6rem; margin: 0 0 24px; letter-spacing: -0.01em; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+  .card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  .card p { margin: 0; color: var(--muted); font-size: .95rem; }
+  .shots { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); }
+  figure { margin: 0; }
+  figure img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--border); display: block; }
+  figcaption { color: var(--muted); font-size: .9rem; margin-top: 8px; text-align: center; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; }
+  pre { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; overflow-x: auto; }
+  footer { border-top: 1px solid var(--border); color: var(--muted); font-size: .9rem; padding: 28px 0 48px; text-align: center; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <img class="logo" src="icon.png" alt="">
+    <h1>Appraiser</h1>
+    <p class="tagline">A visual manager for adb-connected Android devices. Apps, files, logs, a shell and screen mirroring in one desktop app.</p>
+    <div class="buttons">
+      <a class="btn primary" href="https://github.com/CSWanigasooriya/appraiser/releases/latest">Download</a>
+      <a class="btn" href="https://github.com/CSWanigasooriya/appraiser">View on GitHub</a>
+    </div>
+    <p class="note">macOS, Windows and Linux. adb is included, nothing else to install.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="screenshots">
+    <h2>Screenshots</h2>
+    <div class="shots">
+      <figure><img src="screenshots/overview.png" alt="Device overview" onerror="this.closest('figure').hidden=true"><figcaption>Overview</figcaption></figure>
+      <figure><img src="screenshots/mirror.png" alt="Screen mirroring" onerror="this.closest('figure').hidden=true"><figcaption>Screen mirroring</figcaption></figure>
+      <figure><img src="screenshots/files.png" alt="File browser" onerror="this.closest('figure').hidden=true"><figcaption>File browser</figcaption></figure>
+      <figure><img src="screenshots/logs.png" alt="Live logcat" onerror="this.closest('figure').hidden=true"><figcaption>Live logcat</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>Features</h2>
+    <div class="grid">
+      <div class="card"><h3>Apps</h3><p>Install by drag and drop, see permissions and storage, extract APKs, clear data, force stop, uninstall.</p></div>
+      <div class="card"><h3>Files</h3><p>Browse the phone, upload and download with drag and drop, rename, delete, preview.</p></div>
+      <div class="card"><h3>Logs</h3><p>Live logcat with level, app, text and regex filters, a crashes-only view and a fast virtualized list.</p></div>
+      <div class="card"><h3>Screen mirroring</h3><p>Touch control, sound, screenshots, recording, clipboard sync, macros and a detachable window.</p></div>
+      <div class="card"><h3>Shell</h3><p>A terminal with syntax highlighting and completions for common commands.</p></div>
+      <div class="card"><h3>Inspector and performance</h3><p>Inspect the UI hierarchy and watch CPU, memory and more in live charts.</p></div>
+      <div class="card"><h3>Tools</h3><p>Intent tester, developer settings, port forwarding, battery simulation and one-click bug reports.</p></div>
+      <div class="card"><h3>Automation</h3><p>Saved commands and replayable macros. Run installs and commands on every phone at once.</p></div>
+      <div class="card"><h3>Wireless</h3><p>Pair with a QR code. Wireless devices are remembered and reconnected automatically.</p></div>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>Install</h2>
+    <table>
+      <tr><th>macOS</th><td>Download the <code>.dmg</code>, drag Appraiser to Applications.</td></tr>
+      <tr><th>Windows</th><td>Download the <code>.msi</code> or <code>.exe</code> installer.</td></tr>
+      <tr><th>Linux</th><td>Download the <code>.AppImage</code>, <code>.deb</code> or <code>.rpm</code>.</td></tr>
+    </table>
+    <p class="note">Builds are not code signed yet. On macOS, right-click the app and choose Open the first time. On Windows, choose "More info" then "Run anyway" in SmartScreen.</p>
+    <p>On the phone, turn on <strong>Developer options</strong> and <strong>USB debugging</strong>, plug it in and accept the prompt.</p>
+  </section>
+
+  <section id="build">
+    <h2>Build from source</h2>
+    <pre><code>git clone https://github.com/CSWanigasooriya/appraiser
+cd appraiser
+npm install
+npm run tauri dev</code></pre>
+    <p>You need Rust, Node.js 20+, a JDK and an Android SDK (platform 36 and build-tools 36.0.0), used to build the bundled scrcpy server. See the <a href="https://github.com/CSWanigasooriya/appraiser#readme">README</a>.</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    Apache License 2.0. Includes the scrcpy server by Genymobile.
+    <a href="https://github.com/CSWanigasooriya/appraiser">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>
