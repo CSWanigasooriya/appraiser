@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use apk_info::Apk;
-use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::Serialize;
 
 use super::{runner, AdbError};
@@ -12,18 +10,21 @@ pub struct App {
     pub package: String,
     pub version_name: Option<String>,
     pub system: bool,
+    /// Device path of the base APK. Changes whenever the app updates, so it
+    /// doubles as a cache key for anything derived from the APK (icons).
+    pub apk_path: Option<String>,
 }
 
 /// Lists installed packages. `include_system` also lists system/OEM apps,
 /// which can number in the hundreds.
 pub fn list_apps(serial: &str, include_system: bool) -> Result<Vec<App>, AdbError> {
     let flag = if include_system { "-u" } else { "-3" };
-    let out = runner::run(&["-s", serial, "shell", "pm", "list", "packages", flag])?;
+    let out = runner::run(&["-s", serial, "shell", "pm", "list", "packages", "-f", flag])?;
     let packages = parse_package_list(&out);
 
     let mut apps: Vec<App> = packages
         .into_iter()
-        .map(|package| App { package, version_name: None, system: include_system })
+        .map(|(package, apk_path)| App { package, version_name: None, system: include_system, apk_path })
         .collect();
     apps.sort_by(|a, b| a.package.cmp(&b.package));
     Ok(apps)
@@ -37,11 +38,15 @@ pub fn app_versions(serial: &str) -> Result<HashMap<String, String>, AdbError> {
     Ok(parse_version_names(&dump))
 }
 
-fn parse_package_list(output: &str) -> Vec<String> {
+/// Parses `package:<apk path>=<package>` lines (`pm list packages -f`).
+fn parse_package_list(output: &str) -> Vec<(String, Option<String>)> {
     output
         .lines()
         .filter_map(|l| l.trim().strip_prefix("package:"))
-        .map(str::to_string)
+        .map(|rest| match rest.rsplit_once('=') {
+            Some((path, package)) => (package.to_string(), Some(path.to_string())),
+            None => (rest.to_string(), None),
+        })
         .collect()
 }
 
@@ -66,58 +71,6 @@ fn validate_package(package: &str) -> Result<&str, AdbError> {
         && package.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_');
     ok.then_some(package)
         .ok_or_else(|| AdbError::Failed(format!("Invalid package name: {package:?}")))
-}
-
-/// Launcher icon as a `data:` URL, or `None` when it can't be extracted
-/// (adaptive/vector-only icons, obfuscated resources). Pulls the base APK
-/// to a temp file, so it is slow and meant to run in the background.
-pub fn app_icon(serial: &str, package: &str) -> Result<Option<String>, AdbError> {
-    let package = validate_package(package)?;
-    let listing = runner::run(&["-s", serial, "shell", "pm", "path", package])?;
-    let paths: Vec<&str> = listing.lines().filter_map(|l| l.trim().strip_prefix("package:")).collect();
-    let Some(remote) = paths.iter().find(|p| p.ends_with("base.apk")).or(paths.first()) else {
-        return Ok(None);
-    };
-
-    let local = std::env::temp_dir().join(format!("appraiser-{}-{package}.apk", std::process::id()));
-    let local_str = local.to_string_lossy().into_owned();
-    let pulled = runner::run(&["-s", serial, "pull", remote, &local_str]);
-    let icon = pulled.map(|_| extract_icon(&local));
-    let _ = std::fs::remove_file(&local);
-    Ok(icon?)
-}
-
-fn extract_icon(apk_path: &Path) -> Option<String> {
-    let apk = Apk::new(apk_path).ok()?;
-    let icon = apk.get_application_icon()?;
-    let is_bitmap = |n: &str| n.ends_with(".png") || n.ends_with(".webp");
-
-    let entry = if is_bitmap(&icon) {
-        icon
-    } else {
-        // Adaptive icons resolve to XML; fall back to a legacy bitmap with
-        // the same name, preferring the highest density.
-        let stem = Path::new(&icon).file_stem()?.to_str()?.to_string();
-        apk.namelist()
-            .filter(|n| {
-                n.starts_with("res/")
-                    && is_bitmap(n)
-                    && Path::new(n).file_stem().and_then(|s| s.to_str()) == Some(stem.as_str())
-            })
-            .max_by_key(|n| density_rank(n))?
-            .to_string()
-    };
-
-    let (bytes, _) = apk.read(&entry).ok()?;
-    let mime = if entry.ends_with(".webp") { "image/webp" } else { "image/png" };
-    Some(format!("data:{mime};base64,{}", STANDARD.encode(bytes)))
-}
-
-fn density_rank(path: &str) -> u8 {
-    ["mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi"]
-        .iter()
-        .rposition(|d| path.contains(&format!("-{d}")))
-        .map_or(0, |i| i as u8 + 1)
 }
 
 /// Installs one APK, or a split APK set (a base plus config splits) from
@@ -160,8 +113,14 @@ mod tests {
 
     #[test]
     fn parses_package_list() {
-        let out = "package:com.android.chrome\npackage:com.example.app\n";
-        assert_eq!(parse_package_list(out), vec!["com.android.chrome", "com.example.app"]);
+        let out = "package:/data/app/~~x==/com.android.chrome-y==/base.apk=com.android.chrome\npackage:com.example.app\n";
+        assert_eq!(
+            parse_package_list(out),
+            vec![
+                ("com.android.chrome".to_string(), Some("/data/app/~~x==/com.android.chrome-y==/base.apk".to_string())),
+                ("com.example.app".to_string(), None),
+            ]
+        );
     }
 
     #[test]
@@ -170,12 +129,6 @@ mod tests {
         let v = parse_version_names(dump);
         assert_eq!(v.get("com.a").map(String::as_str), Some("1.2.3"));
         assert_eq!(v.get("com.b").map(String::as_str), Some("9"));
-    }
-
-    #[test]
-    fn ranks_higher_densities_first() {
-        assert!(density_rank("res/mipmap-xxxhdpi-v4/ic.png") > density_rank("res/mipmap-xxhdpi-v4/ic.png"));
-        assert!(density_rank("res/mipmap-xhdpi/ic.png") > density_rank("res/mipmap-hdpi/ic.png"));
     }
 
     #[test]

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use tauri::Manager;
+
 use super::blocking;
 use crate::adb::{self, AdbError, App};
 
@@ -14,8 +16,14 @@ pub async fn app_versions(serial: String) -> Result<HashMap<String, String>, Adb
 }
 
 #[tauri::command]
-pub async fn app_icon(serial: String, package: String) -> Result<Option<String>, AdbError> {
-    blocking(move || adb::app_icon(&serial, &package)).await
+pub async fn app_icon(
+    app: tauri::AppHandle,
+    serial: String,
+    package: String,
+    apk_path: String,
+) -> Result<Option<String>, AdbError> {
+    let cache_dir = app.path().app_cache_dir().ok().map(|d| d.join("icons"));
+    blocking(move || adb::app_icon(&serial, &package, &apk_path, cache_dir.as_deref())).await
 }
 
 /// Installs one APK, or several for a split-APK set (a base + config splits).

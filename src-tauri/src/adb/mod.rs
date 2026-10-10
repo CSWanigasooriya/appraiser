@@ -4,17 +4,19 @@
 mod apps;
 mod device;
 mod error;
+mod icons;
 mod info;
 mod qr;
 mod runner;
 mod wireless;
 
 pub use apps::{
-    app_icon, app_versions,
+    app_versions,
     clear_data as clear_app_data, force_stop, install as install_apk, list_apps,
     uninstall as uninstall_app, App,
 };
 pub use device::Device;
+pub use icons::app_icon;
 pub use error::AdbError;
 pub use info::DeviceInfo;
 pub use qr::{cancel as cancel_qr_pairing, finish as finish_qr_pairing, start as start_qr_pairing, QrSession};

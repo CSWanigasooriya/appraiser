@@ -68,14 +68,15 @@ export interface App {
   package: string
   version_name: string | null
   system: boolean
+  apk_path: string | null
 }
 
 export const listApps = (serial: string, includeSystem: boolean) =>
   invoke<App[]>('list_apps', { serial, includeSystem })
 export const appVersions = (serial: string) =>
   invoke<Record<string, string>>('app_versions', { serial })
-export const appIcon = (serial: string, pkg: string) =>
-  invoke<string | null>('app_icon', { serial, package: pkg })
+export const appIcon = (serial: string, pkg: string, apkPath: string) =>
+  invoke<string | null>('app_icon', { serial, package: pkg, apkPath })
 /** `paths` is one APK, or several for a split-APK set (base + config splits). */
 export const installApk = (serial: string, paths: string[]) =>
   invoke<void>('install_apk', { serial, paths })

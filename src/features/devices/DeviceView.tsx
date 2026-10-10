@@ -73,7 +73,7 @@ export function DeviceView({ device }: { device: Device }) {
             </div>
           )}
           {visited.has('terminal') && (
-            <div hidden={tab !== 'terminal'}>
+            <div className={tab === 'terminal' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
               <Terminal serial={device.serial} />
             </div>
           )}

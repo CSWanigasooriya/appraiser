@@ -1,4 +1,4 @@
-import { Camera, Power, RotateCcw, Unplug, Wifi } from 'lucide-react'
+import { Camera, Check, Copy, Factory, Hash, Power, RotateCcw, Smartphone, Unplug, Wifi } from 'lucide-react'
 import { useState } from 'react'
 import {
   disconnectDevice,
@@ -11,6 +11,7 @@ import {
 } from '../../lib/adb'
 import { Button } from '../../components/ui/Button'
 import { Card, CardTitle } from '../../components/ui/Card'
+import { Badge } from '../../components/ui/Badge'
 import { Dialog } from '../../components/ui/Dialog'
 import { useToast } from '../../components/ui/toast'
 
@@ -44,24 +45,34 @@ export function Overview({ device, info, wireless }: Props) {
     }
   }
 
-  const rows: [string, string][] = [
-    ['Manufacturer', info?.manufacturer ?? '-'],
-    ['Model', info?.model ?? device.model ?? '-'],
-    ['Android', info?.android_version ? `${info.android_version} (SDK ${info.sdk_level ?? '?'})` : '-'],
-    ['Serial', serial],
-  ]
+  const model = info?.model ?? device.model
+  const title = [info?.manufacturer, model].filter(Boolean).join(' ') || serial
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <Card>
-        <CardTitle>Device info</CardTitle>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-          {rows.map(([k, v]) => (
-            <div key={k} className="contents">
-              <dt className="text-zinc-500">{k}</dt>
-              <dd className="break-all">{v}</dd>
-            </div>
-          ))}
+      <Card className="flex flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+            <Smartphone size={22} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-base font-semibold">{title}</h3>
+            <p className="text-xs text-zinc-500">
+              {info ? (model ?? 'Unknown model') : 'Reading device info...'}
+            </p>
+          </div>
+          {info?.android_version && <Badge tone="green">Android {info.android_version}</Badge>}
+        </div>
+
+        <dl className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+          <InfoRow icon={<Factory size={15} />} label="Manufacturer" value={info ? (info.manufacturer ?? '-') : null} />
+          <InfoRow icon={<Smartphone size={15} />} label="Model" value={model ?? (info ? '-' : null)} />
+          <InfoRow
+            icon={<Hash size={15} />}
+            label="API level"
+            value={info ? (info.sdk_level ? `SDK ${info.sdk_level}` : '-') : null}
+          />
+          <InfoRow icon={<Wifi size={15} />} label="Serial" value={serial} mono copyable />
         </dl>
       </Card>
 
@@ -147,6 +158,55 @@ export function Overview({ device, info, wireless }: Props) {
           </Button>
         </div>
       </Dialog>
+    </div>
+  )
+}
+
+function InfoRow({
+  icon,
+  label,
+  value,
+  mono,
+  copyable,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string | null | undefined
+  mono?: boolean
+  copyable?: boolean
+}) {
+  const [copied, setCopied] = useState(false)
+  const copy = () => {
+    if (!value) return
+    navigator.clipboard
+      .writeText(value)
+      .then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1200)
+      })
+      .catch(() => {})
+  }
+
+  return (
+    <div className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+      <span className="text-zinc-400">{icon}</span>
+      <dt className="w-28 shrink-0 text-zinc-500">{label}</dt>
+      <dd
+        className={`min-w-0 flex-1 truncate text-right ${mono ? 'font-mono text-xs' : ''}`}
+        title={value ?? undefined}
+      >
+        {value ?? <span className="inline-block h-3 w-20 animate-pulse rounded bg-zinc-200 dark:bg-zinc-800" />}
+      </dd>
+      {copyable && value && (
+        <button
+          type="button"
+          onClick={copy}
+          aria-label={`Copy ${label.toLowerCase()}`}
+          className="shrink-0 rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+        >
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+        </button>
+      )}
     </div>
   )
 }
