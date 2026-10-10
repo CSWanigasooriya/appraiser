@@ -1,0 +1,40 @@
+use super::blocking;
+use crate::adb::{self, AdbError};
+
+#[tauri::command]
+pub async fn connect_device(addr: String) -> Result<String, AdbError> {
+    blocking(move || adb::connect(&addr)).await
+}
+
+#[tauri::command]
+pub async fn pair_device(addr: String, code: String) -> Result<String, AdbError> {
+    blocking(move || adb::pair(&addr, &code)).await
+}
+
+#[tauri::command]
+pub async fn disconnect_device(addr: String) -> Result<(), AdbError> {
+    blocking(move || adb::disconnect(&addr)).await
+}
+
+/// Switches a USB device to Wi-Fi debugging; returns the `ip:port`.
+#[tauri::command]
+pub async fn enable_wireless(serial: String) -> Result<String, AdbError> {
+    blocking(move || adb::enable_wireless(&serial)).await
+}
+
+/// Step 1 of QR pairing: generates the QR code to show the user.
+#[tauri::command]
+pub async fn start_qr_pairing() -> Result<adb::QrSession, AdbError> {
+    blocking(adb::start_qr_pairing).await
+}
+
+/// Step 2: waits for the phone to scan the code, then pairs. Can take up to two minutes.
+#[tauri::command]
+pub async fn finish_qr_pairing(name: String, password: String) -> Result<String, AdbError> {
+    blocking(move || adb::finish_qr_pairing(&name, &password)).await
+}
+
+#[tauri::command]
+pub fn cancel_qr_pairing() {
+    adb::cancel_qr_pairing();
+}

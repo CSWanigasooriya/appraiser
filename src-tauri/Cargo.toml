@@ -1,0 +1,23 @@
+[package]
+name = "appraiser"
+version = "0.1.0"
+description = "A visual manager for adb-connected Android devices"
+edition = "2021"
+
+[lib]
+name = "appraiser_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+base64 = "0.22"
+rand = "0.8"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+tauri-plugin-dialog = "2"
+apk-info = "1.0.13"
