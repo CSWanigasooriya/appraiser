@@ -12,7 +12,8 @@ pub struct MirrorSessions(Mutex<HashMap<String, Mirror>>);
 
 /// Wire format for the frontend, first byte is the kind:
 /// `0` config: `[codec len u8][codec utf8][avcC]`, `1` frame: `[key u8][AVCC data]`,
-/// `2` error: utf8 message, `3` audio: 48 kHz s16le stereo PCM, `4` notice: utf8 message.
+/// `2` error: utf8 message, `3` audio: 48 kHz s16le stereo PCM, `4` notice: utf8 message,
+/// `5` the phone's clipboard text.
 fn encode(event: MirrorEvent) -> Vec<u8> {
     match event {
         MirrorEvent::Packet(Packet::Config { codec, avcc }) => {
@@ -27,6 +28,7 @@ fn encode(event: MirrorEvent) -> Vec<u8> {
             out.extend_from_slice(&data);
             out
         }
+        MirrorEvent::Clipboard(text) => [&[5u8][..], text.as_bytes()].concat(),
         MirrorEvent::Audio(pcm) => [&[3u8][..], &pcm].concat(),
         MirrorEvent::Notice(msg) => [&[4u8][..], msg.as_bytes()].concat(),
         MirrorEvent::Error(msg) => {

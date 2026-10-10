@@ -2,17 +2,22 @@ import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
 import { MonitorPlay, Pin, PinOff, Smartphone } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { BLANK_HINT } from './blankHint'
+import { MirrorCapture } from './MirrorCapture'
 import { MirrorControls } from './MirrorControls'
 import { MirrorScreen } from './MirrorScreen'
+import { useCapture } from './useCapture'
 import { useMirror } from './useMirror'
 
 /** Height of the control bar, for sizing the window to the phone's aspect ratio. */
-const BAR_HEIGHT = 64
+const BAR_HEIGHT = 112
 const WINDOW_WIDTH = 380
 
 /** The mirror on its own, shown in a detached window. Starts on open and stops on close. */
 export function MirrorWindow({ serial }: { serial: string }) {
-  const { canvasRef, status, error, notice, size, muted, setMuted, sendInput, start } = useMirror(serial)
+  const mirror = useMirror(serial)
+  const { canvasRef, status, error, notice, blank, size, muted, setMuted, sendInput, start } = mirror
+  const capture = useCapture(`mirror-${serial}`, mirror)
   const [pinned, setPinned] = useState(false)
   const resized = useRef(false)
 
@@ -62,6 +67,11 @@ export function MirrorWindow({ serial }: { serial: string }) {
             )}
           </div>
         )}
+        {blank && live && (
+          <p className="absolute inset-x-2 bottom-2 rounded-lg bg-zinc-800/90 p-2 text-center text-xs text-zinc-100">
+            {BLANK_HINT}
+          </p>
+        )}
         {notice && (
           <p className="absolute inset-x-2 top-2 rounded-lg bg-amber-500/90 p-2 text-center text-xs text-black">{notice}</p>
         )}
@@ -73,6 +83,19 @@ export function MirrorWindow({ serial }: { serial: string }) {
             {pinned ? <PinOff size={16} /> : <Pin size={16} />}
           </Button>
         </MirrorControls>
+        <div className="mt-2">
+          <MirrorCapture
+            compact
+            live={live}
+            capture={capture}
+            sendInput={sendInput}
+            getClipboard={mirror.getClipboard}
+            canvasRef={canvasRef}
+            macroRecording={mirror.macroRecording}
+            startMacroRecording={mirror.startMacroRecording}
+            stopMacroRecording={mirror.stopMacroRecording}
+          />
+        </div>
       </div>
     </div>
   )

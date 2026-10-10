@@ -35,6 +35,14 @@ pub fn connect(addr: &str) -> Result<String, AdbError> {
     expect_output(out, &["connected to", "already connected to"])
 }
 
+/// Like `connect`, but gives up after a few seconds: a phone that is off the
+/// network would otherwise keep adb waiting.
+pub fn connect_quick(addr: &str) -> Result<String, AdbError> {
+    let addr = validate_addr(addr)?;
+    let out = runner::run_timeout(&["connect", addr], Duration::from_secs(4))?;
+    expect_output(out, &["connected to", "already connected to"])
+}
+
 pub fn pair(addr: &str, code: &str) -> Result<String, AdbError> {
     let addr = validate_addr(addr)?;
     let code = code.trim();

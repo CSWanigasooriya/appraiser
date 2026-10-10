@@ -20,6 +20,8 @@ pub enum Event {
     Packet(Packet),
     /// 48 kHz, 16-bit little-endian, stereo PCM.
     Audio(Vec<u8>),
+    /// The phone's clipboard text, sent in answer to `Input::GetClipboard`.
+    Clipboard(String),
     /// Something non-fatal worth telling the user (e.g. no audio capture).
     Notice(String),
     /// The stream ended on its own.
@@ -143,10 +145,11 @@ fn session(
         return Ok(());
     }
 
-    // Input goes out on the control socket; anything the phone sends back
-    // (clipboard etc.) is read and discarded so the server never blocks.
+    // Input goes out on the control socket. What the phone sends back is read
+    // so the server never blocks; clipboard contents are passed on.
     *control.lock().unwrap() = control_socket.try_clone().ok();
-    drain(Some(control_socket), Arc::new(Mutex::new(String::new())));
+    let control_cb = on_event.clone();
+    thread::spawn(move || read_device_messages(control_socket, &control_cb));
 
     let audio_cb = on_event.clone();
     thread::spawn(move || read_audio(audio, &audio_cb));
@@ -282,6 +285,16 @@ fn read_video(stream: &mut TcpStream, on_event: &Callback) {
     }
 }
 
+fn read_device_messages(mut stream: TcpStream, on_event: &Callback) {
+    while let Ok(message) = control::read_device_message(&mut stream) {
+        if let Some(text) = message {
+            if !on_event(Event::Clipboard(text)) {
+                return;
+            }
+        }
+    }
+}
+
 fn read_audio(mut stream: TcpStream, on_event: &Callback) {
     let mut codec = [0u8; 4];
     if stream.read_exact(&mut codec).is_err() {
@@ -361,6 +374,7 @@ mod tests {
                 }
                 Ok(Event::Audio(b)) => audio += b.len(),
                 Ok(Event::Notice(n)) => println!("notice: {n}"),
+                Ok(Event::Clipboard(_)) => {}
                 Ok(Event::Error(e)) => panic!("stream error: {e}"),
                 Err(_) => break,
             }

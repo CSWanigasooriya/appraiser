@@ -1,4 +1,6 @@
-use super::blocking;
+use tauri::{AppHandle, Manager};
+
+use super::{blocking, devices::KnownDevices};
 use crate::adb::{self, AdbError};
 
 #[tauri::command]
@@ -12,7 +14,9 @@ pub async fn pair_device(addr: String, code: String) -> Result<String, AdbError>
 }
 
 #[tauri::command]
-pub async fn disconnect_device(addr: String) -> Result<(), AdbError> {
+pub async fn disconnect_device(app: AppHandle, addr: String) -> Result<(), AdbError> {
+    // Disconnecting on purpose also means "stop reconnecting this one".
+    app.state::<KnownDevices>().forget(&addr);
     blocking(move || adb::disconnect(&addr)).await
 }
 

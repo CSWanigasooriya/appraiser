@@ -3,6 +3,13 @@
 A visual manager for adb-connected Android devices, built with Tauri 2 (Rust) and React + TypeScript.
 Targets macOS and Windows.
 
+## Features
+- Overview, apps (with permissions, storage, APK extraction), file browser, logs and shell.
+- Screen mirroring with touch, sound, screenshots, screen recording (with sound), clipboard sync and macro recording.
+- UI inspector, live performance charts, and a Tools tab: intent tester, developer settings, network and port forwarding, battery simulation and one-click bug reports.
+- Automation: saved shell commands and replayable macros. "All devices" runs installs, commands and switches on every phone at once.
+- Wireless devices are remembered and reconnected automatically.
+
 ## Prerequisites
 - [Rust](https://rustup.rs) (stable)
 - Node.js 20+

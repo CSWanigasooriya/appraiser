@@ -6,9 +6,12 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { InfoRow } from '../../components/ui/InfoRow'
 import { useToast } from '../../components/ui/toast'
+import { BLANK_HINT } from './blankHint'
+import { MirrorCapture } from './MirrorCapture'
 import { MirrorControls } from './MirrorControls'
 import { MirrorScreen } from './MirrorScreen'
 import { findMirrorWindow, openMirrorWindow } from './popout'
+import { useCapture } from './useCapture'
 import { useMirror, type MirrorStatus } from './useMirror'
 
 interface Props {
@@ -29,8 +32,9 @@ const statusLabel: Record<MirrorStatus, string> = {
 
 export function MirrorTab({ serial, title, active }: Props) {
   const toast = useToast()
-  const { canvasRef, status, error, waiting, size, fps, notice, muted, setMuted, sendInput, start, stop } =
-    useMirror(serial)
+  const mirror = useMirror(serial)
+  const { canvasRef, status, error, waiting, size, fps, notice, blank, muted, setMuted, sendInput, start, stop } = mirror
+  const capture = useCapture(title, mirror)
   // The detached window, while it is open. Only one session per phone can run,
   // so the tab stays idle while the mirror lives in the window.
   const [detached, setDetached] = useState<WebviewWindow | null>(null)
@@ -114,6 +118,9 @@ export function MirrorTab({ serial, title, active }: Props) {
         {notice && (
           <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">{notice}</p>
         )}
+        {blank && live && (
+          <p className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm">{BLANK_HINT}</p>
+        )}
         {waiting && status === 'starting' && (
           <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
             Waiting for the first frame. If nothing appears, turn on and unlock the phone screen: Android sends no
@@ -138,10 +145,20 @@ export function MirrorTab({ serial, title, active }: Props) {
         </dl>
 
         <MirrorControls live={live} muted={muted} setMuted={setMuted} sendInput={sendInput} />
+        <MirrorCapture
+          live={live}
+          capture={capture}
+          sendInput={sendInput}
+          getClipboard={mirror.getClipboard}
+          canvasRef={canvasRef}
+          macroRecording={mirror.macroRecording}
+          startMacroRecording={mirror.startMacroRecording}
+          stopMacroRecording={mirror.stopMacroRecording}
+        />
 
         <p className="text-xs text-zinc-500">
           Click and drag on the screen to touch and swipe, scroll with the wheel, and type with the screen focused. While
-          mirroring, the phone's own audio plays on this computer instead. Mirroring stops automatically when you leave
+          mirroring, the phone's own audio plays on this computer instead. Recordings go to your Videos folder and screenshots to Pictures, in an Appraiser folder. Mirroring stops automatically when you leave
           this tab, unless it is popped out. A still screen sends few frames, so the frame rate drops when nothing moves.
         </p>
       </Card>

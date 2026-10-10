@@ -4,7 +4,7 @@ import { useToast } from '../../components/ui/toast'
 import { AppList } from './AppList'
 import { InstallDropzone } from './InstallDropzone'
 
-export function AppsTab({ serial }: { serial: string }) {
+export function AppsTab({ serial, active }: { serial: string; active: boolean }) {
   const toast = useToast()
   const [apps, setApps] = useState<App[]>([])
   const [loading, setLoading] = useState(true)
@@ -33,7 +33,7 @@ export function AppsTab({ serial }: { serial: string }) {
 
   return (
     <div className="space-y-5">
-      <InstallDropzone serial={serial} onInstalled={refresh} />
+      <InstallDropzone serial={serial} active={active} onInstalled={refresh} />
       <AppList
         serial={serial}
         apps={apps}

@@ -1,8 +1,10 @@
-import { Plus, Smartphone, Wifi } from 'lucide-react'
+import { Layers, Plus, Smartphone, Wifi } from 'lucide-react'
 import { isWireless, type Device, type DeviceState } from '../../lib/adb'
 import { Badge, type Tone } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { cn } from '../../components/ui/cn'
+import { useResizable } from '../../components/ui/useResizable'
+import { FLEET_ID } from '../fleet/id'
 
 const stateTone: Record<DeviceState, Tone> = {
   online: 'green',
@@ -19,24 +21,68 @@ interface Props {
   onAdd: () => void
 }
 
+/** Below this width the sidebar shows icons only. */
+const COMPACT_BELOW = 160
+
 export function Sidebar({ devices, error, selected, onSelect, onAdd }: Props) {
+  const { width, dragging, handleProps } = useResizable({
+    storageKey: 'sidebar-width',
+    initial: 288,
+    min: 64,
+    max: 480,
+  })
+  const compact = width < COMPACT_BELOW
+
   return (
-    <aside className="flex w-16 flex-none lg:w-72 flex-col border-r border-zinc-200 bg-zinc-100/60 dark:border-zinc-800 dark:bg-zinc-900/40">
-      <div className="px-2 pt-5 pb-3 max-lg:text-center lg:px-4">
-        <h1 className="text-base font-semibold max-lg:text-xs">ADB GUI</h1>
-        <p className="text-xs text-zinc-500 max-lg:hidden">
-          {devices.length} device{devices.length === 1 ? '' : 's'}
-        </p>
+    <aside
+      style={{ width }}
+      className={cn(
+        'relative flex flex-none flex-col border-r border-zinc-200 bg-zinc-100/60 dark:border-zinc-800 dark:bg-zinc-900/40',
+        dragging && 'select-none',
+      )}
+    >
+      <div className={cn('pt-5 pb-3', compact ? 'px-2 text-center' : 'px-4')}>
+        {compact ? (
+          <div
+            title="Appraiser"
+            className="mx-auto grid size-9 place-items-center rounded-lg bg-emerald-500/10 text-base font-semibold text-emerald-500"
+          >
+            A
+          </div>
+        ) : (
+          <>
+            <h1 className="truncate text-base font-semibold">Appraiser</h1>
+            <p className="text-xs text-zinc-500">
+              {devices.length} device{devices.length === 1 ? '' : 's'}
+            </p>
+          </>
+        )}
       </div>
 
-      <nav className="flex-1 space-y-1.5 overflow-y-auto px-2 lg:px-3">
-        {error && (
+      <nav className={cn('flex-1 space-y-1.5 overflow-y-auto', compact ? 'px-2' : 'px-3')}>
+        {error && !compact && (
           <p className="rounded-lg bg-red-500/10 p-3 text-xs text-red-600 dark:text-red-400">
             {error}
           </p>
         )}
-        {!error && devices.length === 0 && (
+        {!error && devices.length === 0 && !compact && (
           <p className="px-1 py-2 text-sm text-zinc-500">No devices connected.</p>
+        )}
+        {devices.length > 1 && (
+          <button
+            title="Run on all devices"
+            onClick={() => onSelect(FLEET_ID)}
+            className={cn(
+              'flex w-full cursor-pointer items-center gap-3 rounded-lg py-2.5 text-left transition-colors',
+              compact ? 'justify-center px-0' : 'px-3',
+              selected === FLEET_ID
+                ? 'bg-white shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700'
+                : 'hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60',
+            )}
+          >
+            <Layers size={18} className="flex-none text-zinc-500" />
+            {!compact && <span className="truncate text-sm font-medium">All devices</span>}
+          </button>
         )}
         {devices.map((d) => (
           <button
@@ -44,7 +90,8 @@ export function Sidebar({ devices, error, selected, onSelect, onAdd }: Props) {
             title={d.model ?? d.serial}
             onClick={() => onSelect(d.serial)}
             className={cn(
-              'flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 max-lg:justify-center max-lg:px-0 text-left transition-colors',
+              'flex w-full cursor-pointer items-center gap-3 rounded-lg py-2.5 text-left transition-colors',
+              compact ? 'justify-center px-0' : 'px-3',
               d.serial === selected
                 ? 'bg-white shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700'
                 : 'hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60',
@@ -55,20 +102,34 @@ export function Sidebar({ devices, error, selected, onSelect, onAdd }: Props) {
             ) : (
               <Smartphone size={18} className="flex-none text-zinc-500" />
             )}
-            <div className="min-w-0 flex-1 max-lg:hidden">
-              <div className="truncate text-sm font-medium">{d.model ?? d.serial}</div>
-              <div className="truncate text-xs text-zinc-500">{d.serial}</div>
-            </div>
-            <Badge tone={stateTone[d.state]} className="max-lg:hidden">{d.state}</Badge>
+            {!compact && (
+              <>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{d.model ?? d.serial}</div>
+                  <div className="truncate text-xs text-zinc-500">{d.serial}</div>
+                </div>
+                <Badge tone={stateTone[d.state]}>{d.state}</Badge>
+              </>
+            )}
           </button>
         ))}
       </nav>
 
-      <div className="p-2 lg:p-3">
-        <Button variant="primary" className="w-full max-lg:px-0" onClick={onAdd} title="Add device">
-          <Plus size={16} /> <span className="max-lg:sr-only">Add device</span>
+      <div className={compact ? 'p-2' : 'p-3'}>
+        <Button variant="primary" className={cn('w-full', compact && 'px-0')} onClick={onAdd} title="Add device">
+          <Plus size={16} />
+          {!compact && 'Add device'}
         </Button>
       </div>
+
+      <div
+        {...handleProps}
+        title="Drag to resize, double-click to reset"
+        className={cn(
+          'absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize outline-none transition-colors hover:bg-blue-500/30 focus-visible:bg-blue-500/40',
+          dragging && 'bg-blue-500/40',
+        )}
+      />
     </aside>
   )
 }

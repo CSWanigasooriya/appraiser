@@ -28,3 +28,7 @@ src-tauri/target
 src-tauri/gen
 
 .claude/
+
+# Downloaded by scripts/fetch-platform-tools.mjs
+src-tauri/resources/platform-tools/*
+!src-tauri/resources/platform-tools/.gitkeep

@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "node scripts/fetch-platform-tools.mjs && npm run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -18,6 +18,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": { "resources/platform-tools": "platform-tools" },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

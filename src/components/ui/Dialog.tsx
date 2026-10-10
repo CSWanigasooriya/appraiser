@@ -6,11 +6,13 @@ interface Props {
   open: boolean
   onClose: () => void
   title: string
+  /** `lg` for content like image previews. */
+  size?: 'md' | 'lg'
   children: ReactNode
 }
 
 /** Modal built on the native <dialog> element: focus trap and Esc come for free. */
-export function Dialog({ open, onClose, title, children }: Props) {
+export function Dialog({ open, onClose, title, size = 'md', children }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -25,11 +27,11 @@ export function Dialog({ open, onClose, title, children }: Props) {
       ref={ref}
       onClose={onClose}
       onClick={(e) => e.target === ref.current && onClose()}
-      className="m-auto w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-xl backdrop:bg-black/50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+      className={`m-auto max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto ${size === 'lg' ? 'max-w-3xl' : 'max-w-md'} rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-xl backdrop:bg-black/50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100`}
     >
       {/* Content only mounts while open so forms and QR sessions reset on close. */}
       {open && (
-        <div className="p-5">
+        <div className="p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold">{title}</h2>
             <Button variant="ghost" onClick={onClose} aria-label="Close" className="px-1.5">

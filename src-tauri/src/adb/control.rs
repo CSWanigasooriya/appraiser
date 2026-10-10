@@ -1,6 +1,8 @@
 //! Input events for the scrcpy control socket. The wire format is internal
 //! to scrcpy and tied to the bundled server version (see `scrcpy::VERSION`).
 
+use std::io::Read;
+
 use serde::Deserialize;
 
 /// Android `MotionEvent` / `KeyEvent` action codes.
@@ -22,15 +24,23 @@ pub enum Input {
     /// A press-and-release of an Android keycode (`KEYCODE_*`).
     Key { keycode: i32 },
     Text { text: String },
+    /// Puts text on the phone's clipboard; `paste` also pastes it into the focused field.
+    Clipboard { text: String, paste: bool },
+    /// Asks the phone to send back its clipboard (arrives as a device message).
+    GetClipboard,
 }
 
 const TYPE_KEYCODE: u8 = 0;
 const TYPE_TEXT: u8 = 1;
 const TYPE_TOUCH: u8 = 2;
 const TYPE_SCROLL: u8 = 3;
+const TYPE_GET_CLIPBOARD: u8 = 8;
+const TYPE_SET_CLIPBOARD: u8 = 9;
 
 /// The server drops text longer than this.
 const MAX_TEXT_BYTES: usize = 300;
+/// Clipboard messages top out at 256 KiB, minus the 14 bytes of framing.
+const MAX_CLIPBOARD_BYTES: usize = (1 << 18) - 14;
 
 /// Serializes an input into one or more control messages, back to back.
 pub fn encode(input: &Input) -> Vec<u8> {
@@ -74,6 +84,44 @@ pub fn encode(input: &Input) -> Vec<u8> {
             m.extend(bytes);
             m
         }
+        Input::Clipboard { text, paste } => {
+            let bytes = truncate_utf8(text, MAX_CLIPBOARD_BYTES);
+            let mut m = vec![TYPE_SET_CLIPBOARD];
+            m.extend(0u64.to_be_bytes()); // sequence 0: no acknowledgement wanted
+            m.push(*paste as u8);
+            m.extend((bytes.len() as u32).to_be_bytes());
+            m.extend(bytes);
+            m
+        }
+        Input::GetClipboard => vec![TYPE_GET_CLIPBOARD, 0], // 0: don't press copy first
+    }
+}
+
+/// Reads the phone's messages on the control socket. Returns the clipboard
+/// text of one, `Ok(None)` for kinds we ignore, or `Err` at end of stream.
+pub fn read_device_message(r: &mut impl std::io::Read) -> std::io::Result<Option<String>> {
+    let mut kind = [0u8; 1];
+    r.read_exact(&mut kind)?;
+    let skip = |r: &mut dyn std::io::Read, n: usize| std::io::copy(&mut r.take(n as u64), &mut std::io::sink()).map(|_| ());
+    match kind[0] {
+        0 => {
+            let mut len = [0u8; 4];
+            r.read_exact(&mut len)?;
+            let len = u32::from_be_bytes(len) as usize;
+            if len > MAX_CLIPBOARD_BYTES + 14 {
+                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "clipboard too large"));
+            }
+            let mut text = vec![0u8; len];
+            r.read_exact(&mut text)?;
+            Ok(Some(String::from_utf8_lossy(&text).into_owned()))
+        }
+        1 => skip(r, 8).map(|_| None),
+        2 => {
+            let mut head = [0u8; 4]; // id, then the data size
+            r.read_exact(&mut head)?;
+            skip(r, u16::from_be_bytes([head[2], head[3]]) as usize).map(|_| None)
+        }
+        _ => Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "unknown device message")),
     }
 }
 
@@ -142,6 +190,34 @@ mod tests {
         let long = "é".repeat(400);
         let m = encode(&Input::Text { text: long });
         assert_eq!(m.len(), 5 + 300);
+    }
+
+    #[test]
+    fn clipboard_messages() {
+        let m = encode(&Input::Clipboard { text: "hi".into(), paste: true });
+        let mut want = vec![9];
+        want.extend([0u8; 8]);
+        want.push(1);
+        want.extend(2u32.to_be_bytes());
+        want.extend(b"hi");
+        assert_eq!(m, want);
+        assert_eq!(encode(&Input::GetClipboard), vec![8, 0]);
+    }
+
+    #[test]
+    fn reads_device_messages() {
+        let mut data = vec![0];
+        data.extend(3u32.to_be_bytes());
+        data.extend(b"abc");
+        data.push(1);
+        data.extend([0u8; 8]);
+        data.extend([2, 0, 0, 1, 0xff]);
+        data.push(9);
+        let mut r = std::io::Cursor::new(data);
+        assert_eq!(read_device_message(&mut r).unwrap(), Some("abc".to_string()));
+        assert_eq!(read_device_message(&mut r).unwrap(), None);
+        assert_eq!(read_device_message(&mut r).unwrap(), None);
+        assert!(read_device_message(&mut r).is_err());
     }
 
     #[test]

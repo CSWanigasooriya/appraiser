@@ -1,6 +1,7 @@
-import { Eraser, Search, SquareX, Trash2 } from 'lucide-react'
+import { Eraser, Info, Search, SquareX, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { clearAppData, forceStopApp, uninstallApp, type App } from '../../lib/adb'
+import { AppDetailDialog } from './AppDetailDialog'
 import { AppIcon } from './AppIcon'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -25,6 +26,7 @@ export function AppList({ serial, apps, loading, includeSystem, onIncludeSystemC
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingAction | null>(null)
+  const [details, setDetails] = useState<App | null>(null)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -86,7 +88,7 @@ export function AppList({ serial, apps, loading, includeSystem, onIncludeSystemC
           {filtered.map((app) => (
             <li key={app.package} className="flex items-center gap-3 px-4 py-2.5">
               <AppIcon key={`${serial}/${app.package}`} serial={serial} pkg={app.package} apkPath={app.apk_path} />
-              <div className="min-w-0 flex-1">
+              <button type="button" onClick={() => setDetails(app)} className="min-w-0 flex-1 cursor-pointer text-left">
                 <div className="truncate text-sm font-medium">{app.package}</div>
                 <div className="text-xs text-zinc-500">
                   {app.version_name ?? 'unknown version'}
@@ -97,8 +99,13 @@ export function AppList({ serial, apps, loading, includeSystem, onIncludeSystemC
                     </>
                   )}
                 </div>
-              </div>
+              </button>
               <div className="flex flex-none gap-1">
+                <Tooltip label="Details">
+                  <Button variant="ghost" onClick={() => setDetails(app)}>
+                    <Info size={15} />
+                  </Button>
+                </Tooltip>
                 <Tooltip label="Force stop">
                   <Button
                     variant="ghost"
@@ -132,6 +139,17 @@ export function AppList({ serial, apps, loading, includeSystem, onIncludeSystemC
           ))}
         </ul>
       )}
+
+      <AppDetailDialog
+        serial={serial}
+        app={details}
+        onClose={() => setDetails(null)}
+        onChanged={onChanged}
+        onRequest={(kind, app) => {
+          setDetails(null)
+          setPending({ kind, app })
+        }}
+      />
 
       <Dialog
         open={pending !== null}

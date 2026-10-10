@@ -1,10 +1,10 @@
-import { Camera, Factory, Hash, Power, RotateCcw, Smartphone, Unplug, Wifi } from 'lucide-react'
+import { Camera, Copy, Power, RotateCcw, Search, Smartphone, Unplug, Wifi } from 'lucide-react'
 import { useState } from 'react'
 import {
   disconnectDevice,
   enableWireless,
   rebootDevice,
-  screenshot,
+  saveScreenshot,
   type Device,
   type DeviceInfo,
   type RebootMode,
@@ -15,6 +15,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Dialog } from '../../components/ui/Dialog'
 import { InfoRow } from '../../components/ui/InfoRow'
 import { useToast } from '../../components/ui/toast'
+import { copyPng, fileSafe, fromBase64, stamp } from '../../lib/format'
 
 interface Props {
   device: Device
@@ -50,7 +51,7 @@ export function Overview({ device, info, wireless }: Props) {
   const title = [info?.manufacturer, model].filter(Boolean).join(' ') || serial
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="flex flex-col gap-4">
       <Card className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
@@ -66,14 +67,7 @@ export function Overview({ device, info, wireless }: Props) {
         </div>
 
         <dl className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
-          <InfoRow icon={<Factory size={15} />} label="Manufacturer" value={info ? (info.manufacturer ?? '-') : null} />
-          <InfoRow icon={<Smartphone size={15} />} label="Model" value={model ?? (info ? '-' : null)} />
-          <InfoRow
-            icon={<Hash size={15} />}
-            label="API level"
-            value={info ? (info.sdk_level ? `SDK ${info.sdk_level}` : '-') : null}
-          />
-          <InfoRow icon={<Wifi size={15} />} label="Serial" value={serial} mono copyable />
+          <InfoRow icon={<Wifi size={15} />} label="Connection ID" value={serial} mono copyable />
         </dl>
       </Card>
 
@@ -82,7 +76,13 @@ export function Overview({ device, info, wireless }: Props) {
         <div className="flex flex-wrap gap-2">
           <Button
             disabled={busy === 'shot'}
-            onClick={() => run('shot', async () => setImage(await screenshot(serial)))}
+            onClick={() =>
+              run('shot', async () => {
+                const [path, png] = await saveScreenshot(serial, `${fileSafe(title)}-${stamp()}.png`)
+                setImage(png)
+                toast(`Saved to ${path}`)
+              })
+            }
           >
             <Camera size={16} /> {busy === 'shot' ? 'Capturing...' : 'Screenshot'}
           </Button>
@@ -124,8 +124,20 @@ export function Overview({ device, info, wireless }: Props) {
       </Card>
 
       {image && (
-        <Card className="md:col-span-2">
-          <CardTitle>Screenshot</CardTitle>
+        <Card>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <CardTitle className="mb-0!">Screenshot</CardTitle>
+            <Button
+              onClick={() =>
+                run('copy', async () => {
+                  await copyPng(new Blob([fromBase64(image)], { type: 'image/png' }))
+                  toast('Screenshot copied')
+                })
+              }
+            >
+              <Copy size={16} /> Copy
+            </Button>
+          </div>
           <img
             src={`data:image/png;base64,${image}`}
             alt="Device screenshot"
@@ -133,6 +145,19 @@ export function Overview({ device, info, wireless }: Props) {
           />
         </Card>
       )}
+
+      {info?.sections.map((section) => (
+        <Card key={section.title}>
+          <CardTitle>{section.title}</CardTitle>
+          <dl className="grid gap-x-8 text-sm sm:grid-cols-2 xl:grid-cols-3 [&>div]:border-b [&>div]:border-zinc-100 dark:[&>div]:border-zinc-800">
+            {section.rows.map(([label, value]) => (
+              <InfoRow key={label} label={label} value={value} copyable plain mono={value.length > 24} />
+            ))}
+          </dl>
+        </Card>
+      ))}
+
+      {info && info.props.length > 0 && <PropsCard props={info.props} />}
 
       <Dialog
         open={pendingReboot !== null}
@@ -160,5 +185,49 @@ export function Overview({ device, info, wireless }: Props) {
         </div>
       </Dialog>
     </div>
+  )
+}
+
+function PropsCard({ props }: { props: [string, string][] }) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const q = query.trim().toLowerCase()
+  const shown = q
+    ? props.filter(([k, v]) => k.toLowerCase().includes(q) || v.toLowerCase().includes(q))
+    : props
+
+  return (
+    <Card>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between text-sm font-semibold text-zinc-500 dark:text-zinc-400"
+      >
+        <span>All properties ({props.length})</span>
+        <span className="text-xs font-normal">{open ? 'Hide' : 'Show'}</span>
+      </button>
+      {open && (
+        <div className="mt-3">
+          <div className="relative mb-3">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filter properties..."
+              className="w-full rounded-lg border border-zinc-200 bg-transparent py-1.5 pl-8 pr-3 text-sm outline-none focus:border-emerald-500 dark:border-zinc-700"
+            />
+          </div>
+          <div className="max-h-96 overflow-auto font-mono text-xs">
+            {shown.map(([k, v]) => (
+              <div key={k} className="flex gap-3 border-b border-zinc-100 py-1 dark:border-zinc-800">
+                <span className="w-1/2 shrink-0 break-all text-zinc-500">{k}</span>
+                <span className="min-w-0 flex-1 break-all">{v}</span>
+              </div>
+            ))}
+            {shown.length === 0 && <p className="py-2 text-zinc-500">No matches.</p>}
+          </div>
+        </div>
+      )}
+    </Card>
   )
 }

@@ -46,3 +46,42 @@ pub async fn clear_app_data(serial: String, package: String) -> Result<(), AdbEr
 pub async fn force_stop_app(serial: String, package: String) -> Result<(), AdbError> {
     blocking(move || adb::force_stop(&serial, &package)).await
 }
+
+#[tauri::command]
+pub async fn app_detail(serial: String, package: String) -> Result<adb::AppDetail, AdbError> {
+    blocking(move || adb::app_detail(&serial, &package)).await
+}
+
+/// Sizes are slow to collect, so they come separately from the detail.
+#[tauri::command]
+pub async fn app_storage(serial: String, package: String) -> Result<adb::AppStorage, AdbError> {
+    blocking(move || adb::app_storage(&serial, &package)).await
+}
+
+#[tauri::command]
+pub async fn set_app_permission(serial: String, package: String, permission: String, grant: bool) -> Result<(), AdbError> {
+    blocking(move || adb::set_permission(&serial, &package, &permission, grant)).await
+}
+
+#[tauri::command]
+pub async fn launch_app(serial: String, package: String) -> Result<(), AdbError> {
+    blocking(move || adb::launch_app(&serial, &package)).await
+}
+
+#[tauri::command]
+pub async fn set_app_enabled(serial: String, package: String, enabled: bool) -> Result<(), AdbError> {
+    blocking(move || adb::set_app_enabled(&serial, &package, enabled)).await
+}
+
+#[tauri::command]
+pub async fn clear_app_cache(serial: String, package: String) -> Result<(), AdbError> {
+    blocking(move || adb::clear_app_cache(&serial, &package)).await
+}
+
+/// Copies the app's APK into the Downloads folder; returns where it landed.
+#[tauri::command]
+pub async fn extract_app_apk(app: tauri::AppHandle, serial: String, package: String) -> Result<String, AdbError> {
+    let dest = app.path().download_dir().map_err(|e| AdbError::Failed(e.to_string()))?;
+    let path = blocking(move || adb::extract_apk(&serial, &package, &dest)).await?;
+    Ok(path.to_string_lossy().into_owned())
+}

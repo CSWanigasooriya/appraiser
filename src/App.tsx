@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { Button } from './components/ui/Button'
 import { ToastProvider } from './components/ui/toast'
 import { DeviceView } from './features/devices/DeviceView'
+import { FleetView } from './features/fleet/FleetView'
+import { FLEET_ID } from './features/fleet/id'
 import { Sidebar } from './features/devices/Sidebar'
 import { useDevices } from './features/devices/useDevices'
 import { AddDeviceDialog } from './features/wireless/AddDeviceDialog'
@@ -14,6 +16,7 @@ export default function App() {
 
   // Fall back to the first device so something useful is always on screen.
   const device = devices.find((d) => d.serial === selected) ?? devices[0]
+  const fleet = selected === FLEET_ID && devices.length > 1
 
   return (
     <ToastProvider>
@@ -21,12 +24,14 @@ export default function App() {
         <Sidebar
           devices={devices}
           error={error}
-          selected={device?.serial ?? null}
+          selected={fleet ? FLEET_ID : (device?.serial ?? null)}
           onSelect={setSelected}
           onAdd={() => setAdding(true)}
         />
         <main className="flex-1 overflow-y-auto">
-          {device ? (
+          {fleet ? (
+            <FleetView devices={devices} />
+          ) : device ? (
             <DeviceView key={device.serial} device={device} />
           ) : (
             <div className="grid h-full place-items-center p-6 text-center">

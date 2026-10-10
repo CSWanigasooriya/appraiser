@@ -2,7 +2,11 @@
 pub mod actions;
 pub mod apps;
 pub mod devices;
+pub mod files;
+pub mod logcat;
+pub mod media;
 pub mod mirror;
+pub mod tools;
 pub mod wireless;
 
 use tauri::async_runtime;

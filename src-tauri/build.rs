@@ -18,7 +18,7 @@ fn build_scrcpy_server() {
 
     println!("cargo:rerun-if-changed={}", server.join("src").display());
     println!("cargo:rerun-if-changed={}", script.display());
-    for var in ["ANDROID_HOME", "ANDROID_SDK_ROOT", "ANDROID_PLATFORM", "ANDROID_BUILD_TOOLS"] {
+    for var in ["ANDROID_HOME", "ANDROID_SDK_ROOT", "ANDROID_PLATFORM", "ANDROID_BUILD_TOOLS", "JAVA_HOME"] {
         println!("cargo:rerun-if-env-changed={var}");
     }
 
@@ -42,12 +42,23 @@ fn build_scrcpy_server() {
         )
     });
 
-    if Command::new("javac").arg("-version").output().map_or(true, |o| !o.status.success()) {
-        panic!("\n\nCannot build the scrcpy server: a JDK is required (`javac` not found). See vendor/scrcpy/README.md.\n");
-    }
+    let jdk = find_jdk().unwrap_or_else(|searched| {
+        panic!(
+            "\n\nCannot build the scrcpy server: no JDK (`javac`) found.\nLooked in:\n  {}\n\
+             Install a JDK (17 or newer) or set JAVA_HOME to one. See vendor/scrcpy/README.md.\n",
+            searched.join("\n  ")
+        )
+    });
 
     std::fs::create_dir_all(&build_dir).unwrap();
-    let status = Command::new("bash")
+    let mut cmd = Command::new(find_bash());
+    if let Some(home) = &jdk {
+        // The script calls plain `javac`, so put the JDK we found first on PATH.
+        let mut paths = vec![home.join("bin")];
+        paths.extend(env::split_paths(&env::var_os("PATH").unwrap_or_default()));
+        cmd.env("JAVA_HOME", home).env("PATH", env::join_paths(paths).unwrap());
+    }
+    let status = cmd
         .arg(&script)
         .env("BUILD_DIR", &build_dir)
         .env("ANDROID_HOME", &sdk)
@@ -77,4 +88,87 @@ fn find_sdk(platform: &str, tools: &str) -> Option<PathBuf> {
         let ok = |p: &Path| p.exists();
         ok(&sdk.join(format!("platforms/android-{platform}/android.jar"))) && ok(&sdk.join(format!("build-tools/{tools}")))
     })
+}
+
+fn javac_works(javac: &str) -> bool {
+    Command::new(javac).arg("-version").output().is_ok_and(|o| o.status.success())
+}
+
+fn jdk_has_javac(home: &Path) -> bool {
+    let exe = if cfg!(windows) { "javac.exe" } else { "javac" };
+    let javac = home.join("bin").join(exe);
+    javac.exists() && javac_works(&javac.to_string_lossy())
+}
+
+/// Locates a JDK. `Ok(None)` means `javac` on PATH works as is; `Ok(Some(home))`
+/// is a JDK to put on PATH instead (macOS ships a `/usr/bin/javac` stub that
+/// fails even when a JDK is installed, and IDE or shell setups often leave
+/// JDKs off PATH). `Err` lists everywhere that was searched.
+fn find_jdk() -> Result<Option<PathBuf>, Vec<String>> {
+    let mut searched = Vec::new();
+
+    if let Some(home) = env::var_os("JAVA_HOME").map(PathBuf::from) {
+        if jdk_has_javac(&home) {
+            return Ok(Some(home));
+        }
+        searched.push(format!("JAVA_HOME={} (no working bin/javac)", home.display()));
+    }
+
+    if javac_works("javac") {
+        return Ok(None);
+    }
+    searched.push("javac on PATH".into());
+
+    if cfg!(target_os = "macos") {
+        let out = Command::new("/usr/libexec/java_home").output();
+        if let Some(home) = out.ok().filter(|o| o.status.success()).map(|o| PathBuf::from(String::from_utf8_lossy(&o.stdout).trim())) {
+            if jdk_has_javac(&home) {
+                return Ok(Some(home));
+            }
+        }
+        searched.push("/usr/libexec/java_home".into());
+    }
+
+    // Folders that hold one JDK per subfolder, and where inside that folder the home is.
+    let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap_or_default();
+    let program_files = env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".into());
+    let roots: Vec<(String, &str)> = vec![
+        ("/Library/Java/JavaVirtualMachines".into(), "Contents/Home"),
+        (format!("{home}/Library/Java/JavaVirtualMachines"), "Contents/Home"),
+        ("/opt/homebrew/opt".into(), "libexec/openjdk.jdk/Contents/Home"),
+        ("/usr/local/opt".into(), "libexec/openjdk.jdk/Contents/Home"),
+        ("/usr/lib/jvm".into(), ""),
+        (format!("{home}/.sdkman/candidates/java"), ""),
+        (format!("{program_files}/Eclipse Adoptium"), ""),
+        (format!("{program_files}/Java"), ""),
+        (format!("{program_files}/Microsoft"), ""),
+    ];
+    for (root, inner) in roots {
+        searched.push(root.clone());
+        let Ok(entries) = std::fs::read_dir(&root) else { continue };
+        let mut homes: Vec<PathBuf> = entries.flatten().map(|e| e.path().join(inner)).filter(|h| jdk_has_javac(h)).collect();
+        homes.sort();
+        if let Some(h) = homes.pop() {
+            return Ok(Some(h));
+        }
+    }
+    Err(searched)
+}
+
+/// `bash` for the server build script. On Windows a bare `bash` can resolve to
+/// the WSL launcher in System32, which can't run the script, so prefer Git Bash.
+fn find_bash() -> PathBuf {
+    if cfg!(windows) {
+        let roots = ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"];
+        for var in roots {
+            let Ok(root) = env::var(var) else { continue };
+            for rel in ["Git/bin/bash.exe", "Programs/Git/bin/bash.exe"] {
+                let bash = Path::new(&root).join(rel);
+                if bash.exists() {
+                    return bash;
+                }
+            }
+        }
+    }
+    "bash".into()
 }
